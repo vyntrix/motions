@@ -14,34 +14,34 @@ func _ready() -> void:
 	if label:
 		label.text = "Draw with left mouse button to detect gestures!"
 
-func _on_motion_detected(motion_type: String, data: Dictionary) -> void:
+func _on_motion_detected(motion_type: MotionTracker.MotionType, data: Dictionary) -> void:
 	print("Motion detected: ", motion_type)
 	print("Velocity: ", data.velocity)
 	print("Position: ", data.position)
 
 	if label:
-		label.text = "Current Motion: " + motion_type
+		label.text = "Current Motion: " + MotionTracker.MotionType.keys()[motion_type]
 
-func _on_gesture_completed(gesture: String, confidence: float):
+func _on_gesture_completed(gesture: MotionTracker.MotionType, confidence: float):
 	# Handle completed gesture recognition
 	print("Gesture completed: ", gesture, " (confidence: ", confidence, ")")
 
 	# Update label with completed gesture
 	if label:
-		label.text = "Gesture: " + gesture + " (" + str(int(confidence * 100)) + "% confidence)"
+		label.text = "Gesture: " + MotionTracker.MotionType.keys()[gesture] + " (" + str(int(confidence * 100)) + "% confidence)"
 
 	# You can add specific responses to different gestures
 	match gesture:
-		"CIRCLE_CLOCKWISE":
+		MotionTracker.MotionType.CIRCLE_CLOCKWISE:
 			print("Clockwise circle detected!")
 			# Add your logic here
-		"CIRCLE_COUNTER_CLOCKWISE":
+		MotionTracker.MotionType.CIRCLE_COUNTER_CLOCKWISE:
 			print("Counter-clockwise circle detected!")
 			# Add your logic here
-		"SCOOP_UP":
+		MotionTracker.MotionType.SCOOP_UP:
 			print("Scoop up gesture!")
 			# Add your logic here
-		"ZIGZAG":
+		MotionTracker.MotionType.ZIGZAG:
 			print("Zigzag pattern detected!")
 			# Add your logic here
 		_:

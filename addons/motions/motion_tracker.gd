@@ -1,7 +1,8 @@
+# addons/motions/motion_tracker.gd
 extends Node
 
-signal motion_detected(motion_type: String, data: Dictionary)
-signal gesture_completed(gesture: String, confidence: float)
+signal motion_detected(motion_type: MotionType, data: Dictionary)
+signal gesture_completed(gesture: MotionType, confidence: float)
 
 enum MotionType {
 	NONE,
@@ -39,14 +40,14 @@ var is_tracking: bool = false
 var velocity_history: Array[Vector2] = []
 var direction_changes: Array[float] = []
 
-# Gesture recogintion parameters
+# Gesture recognition parameters
 var max_trail_length: int = 100
 var min_gesture_points: int = 5
 
-func _ready() -> void:
+func _ready():
 	set_process_input(true)
 
-func _input(event: InputEvent) -> void:
+func _input(event):
 	if not tracking_enabled:
 		return
 
@@ -55,22 +56,26 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		_handle_mouse_button(event)
 
-func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
-	var current_pos: Vector2 = event.position
+func _handle_mouse_motion(event: InputEventMouseMotion):
+	var current_pos = event.position
 
 	if not is_tracking:
 		return
 
+	# Add to trail if movement is significant
 	if mouse_trail.is_empty() or current_pos.distance_to(last_mouse_pos) >= min_movement_threshold:
 		mouse_trail.append(current_pos)
 
+		# Calculate velocity
 		if mouse_trail.size() > 1:
 			var velocity = current_pos - last_mouse_pos
 			velocity_history.append(velocity)
 
+			# Keep velocity history manageable
 			if velocity_history.size() > 20:
 				velocity_history.pop_front()
 
+		# Limit trail length
 		if mouse_trail.size() > max_trail_length:
 			mouse_trail.pop_front()
 			if velocity_history.size() > 0:
@@ -78,16 +83,17 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 
 		last_mouse_pos = current_pos
 
+		# Analyze motion in real-time
 		_analyze_current_motion()
 
-func _handle_mouse_button(event: InputEventMouseButton) -> void:
+func _handle_mouse_button(event: InputEventMouseButton):
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_start_tracking()
 		else:
 			_stop_tracking()
 
-func _start_tracking() -> void:
+func _start_tracking():
 	is_tracking = true
 	mouse_trail.clear()
 	velocity_history.clear()
@@ -95,7 +101,7 @@ func _start_tracking() -> void:
 	current_gesture_start_time = Time.get_unix_time_from_system()
 	last_mouse_pos = get_viewport().get_mouse_position()
 
-func _stop_tracking() -> void:
+func _stop_tracking():
 	if is_tracking and mouse_trail.size() >= min_gesture_points:
 		_analyze_complete_gesture()
 
@@ -104,7 +110,7 @@ func _stop_tracking() -> void:
 	velocity_history.clear()
 	direction_changes.clear()
 
-func _analyze_current_motion() -> void:
+func _analyze_current_motion():
 	if velocity_history.size() < 3:
 		return
 
@@ -117,18 +123,19 @@ func _analyze_current_motion() -> void:
 		"trail_length": mouse_trail.size()
 	}
 
-	motion_detected.emit(MotionType.keys()[motion_type], motion_data)
+	motion_detected.emit(motion_type, motion_data)
 
-func _analyze_complete_gesture() -> void:
+func _analyze_complete_gesture():
 	if mouse_trail.size() < min_gesture_points:
 		return
 
 	var gesture_type = _recognize_gesture()
 	var confidence = _calculate_confidence(gesture_type)
 
-	gesture_completed.emit(MotionType.keys()[gesture_type], confidence)
+	gesture_completed.emit(gesture_type, confidence)
 
 func _recognize_gesture() -> MotionType:
+	# Check for complex gestures first
 	var circle_result = _detect_circle()
 	if circle_result != MotionType.NONE:
 		return circle_result
@@ -141,6 +148,7 @@ func _recognize_gesture() -> MotionType:
 	if pattern_result != MotionType.NONE:
 		return pattern_result
 
+	# Fall back to basic directional analysis
 	return _analyze_overall_direction()
 
 func _detect_circle() -> MotionType:
@@ -182,9 +190,11 @@ func _detect_circle() -> MotionType:
 	return MotionType.NONE
 
 func _detect_shapes() -> MotionType:
+	# Triangle detection
 	if _is_triangle_pattern():
 		return MotionType.TRIANGLE
 
+	# Square detection
 	if _is_square_pattern():
 		return MotionType.SQUARE
 
@@ -219,13 +229,16 @@ func _detect_scoop() -> MotionType:
 	var lowest_y = start_y
 	var highest_y = start_y
 
+	# Find the extremes
 	for point in mouse_trail:
 		lowest_y = min(lowest_y, point.y)
 		highest_y = max(highest_y, point.y)
 
+	# Check for scoop up pattern (down then up)
 	if start_y > lowest_y and end_y < start_y and (start_y - lowest_y) > 30:
 		return MotionType.SCOOP_UP
 
+	# Check for scoop down pattern (up then down)
 	if start_y < highest_y and end_y > start_y and (highest_y - start_y) > 30:
 		return MotionType.SCOOP_DOWN
 
@@ -235,6 +248,7 @@ func _is_triangle_pattern() -> bool:
 	if mouse_trail.size() < 6:
 		return false
 
+	# Simple triangle detection: look for 3 major direction changes
 	var corners = _find_corner_points()
 	return corners.size() >= 3 and corners.size() <= 4
 
@@ -254,7 +268,6 @@ func _is_square_pattern() -> bool:
 			right_angles += 1
 
 	return right_angles >= 3
-
 
 func _is_zigzag_pattern() -> bool:
 	if velocity_history.size() < 6:
@@ -352,6 +365,7 @@ func _classify_direction(direction: Vector2) -> MotionType:
 
 	return MotionType.NONE
 
+# Helper functions
 func _get_average_velocity(count: int) -> Vector2:
 	var sum = Vector2.ZERO
 	var start = max(0, velocity_history.size() - count)
